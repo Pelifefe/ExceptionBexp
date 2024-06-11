@@ -17,3 +17,11 @@ Route::controller(AnotherController::class)->group(function () {
     Route::get('/another', 'index');
     Route::get('/another/{texto}', 'index');
 });
+
+Route::get('/cadastro', function () {
+    return view('cadastrarCpf'); 
+})->name('cpf.cadastro');
+
+Route::prefix('cpf')->group(function () {
+    Route::post('/efetuar-cadastro', [CpfController::class, 'create'])->name('efetuar-cadastro');
+});

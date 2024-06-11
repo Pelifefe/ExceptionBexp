@@ -2,103 +2,135 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\UndefinedCpfException;
+
+use App\Exceptions\CpfException;
+use App\Exceptions\IsNotValidCpfException;
+use App\Exceptions\NotContainsCpfException;
+use App\Exceptions\NullFieldCpfException;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+
 
 class CpfController extends Controller
 {
     public function buscar(Request $request)
     {
-        $cpf = $request->input('cpf');  
+        $cpf = $request->input('cpf');
         return $this->index($cpf);
     }
     public function index($cpf = null)
     {
         try {
+            // Se não enviar nada, retornar com erro
             if (is_null($cpf)) {
-                throw new UndefinedCpfException('undefined');
+                throw new NullFieldCpfException();
             }
-            $cpf = $this->formatCpf($cpf);
-            if (!$this->isContainsCpf($cpf)) {
-                throw new UndefinedCpfException('!contains');
-            }
-            $dados = $this->dados($cpf);
-            return response()->json(['message' => 'Usuário encontrado no sistema', 'data' => $dados], Response::HTTP_CREATED);
 
-        } catch (UndefinedCpfException $e) {
-            return $e->getMessage(); //Exibe erro original
+            // Limpar os caracteres especiais
+            $cpf = $this->formatCpf($cpf);
+
+            // Validar o cálculo de CPF
+            if (!$this->isValid($cpf)) {
+                throw new IsNotValidCpfException();
+            }
+
+            // Buscar se o CPF já está cadastrado
+            $resultado = $this->findCpf($this->dados(), $cpf);
+
+            // Se não encontrar o CPF na lista, redirecionar para a tela de cadastro de CPF
+            if (is_null($resultado)) {
+                throw new NotContainsCpfException();
+            }
+
+            // Informar que CPF foi encontrado e já está cadastrado
+            return response()->json($resultado);
+        } catch (NullFieldCpfException $e) {
+            return back()->withErrors($e->getMessage());
+        } catch (IsNotValidCpfException $e) {
+            return back()->withErrors($e->getMessage());
+        } catch (NotContainsCpfException $e) {
+            // Se não encontrar o CPF, redirecionar para a tela de cadastro de CPF
+            return redirect()->route('cpf.cadastro')->withErrors($e->getMessage());
         }
     }
 
     //Função para verificar se o CPF está cadastrado
-    public function isContainsCpf(string $cpf): bool
-    {
-        $lista = $this->dados();
-        foreach ($lista as $user) {
-            if ($user['cpf'] == $cpf) {
-                return true;
-            }
-        }
-        return false;
-    }
+    // public function isContainsCpf(string $cpf): bool
+    // {
+    //     $lista = $this->dados();
+    //     foreach ($lista as $user) {
+    //         if ($user['cpf'] == $cpf) {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
 
-    public function dados($cpf = null)
+    private function isValid($cpf): bool
     {
-        // Lista de usuários cadastrados
-        $lista = [
-            1 => [
-                'nome' => 'Leonardo Sartori',
-                'cpf' => '481.488.398-67',
-                'data_nascimento' => '04/08/1998',
-                'empresa' => 38,
-                'email' => 'leonardo.sartori@bexp.com.br',
-            ],
-            2 => [
-                'nome' => 'Fulano de Duo Jaguaré',
-                'cpf' => '123.456.789-10',
-                'data_nascimento' => '01/01/1990',
-                'empresa' => 46,
-                'email' => 'suporte@bexp.com.br',
-            ],
-            3 => [
-                'nome' => 'Deutrano de Alphaville',
-                'cpf' => '223.426.339-13',
-                'data_nascimento' => '02/12/2003',
-                'empresa' => 36,
-                'email' => 'deutrano.alphaville@audicenteralphaville.com.br',
-            ],
-            4 => [
-                'nome' => 'Felippe Pedrosa',
-                'cpf' => '525.832.258-04',
-                'data_nascimento' => '21/03/2004',
-                'empresa' => 44,
-                'email' => 'felippe.pedrosa@bexp.com.br',
-            ]
-        ];
-        // Retorna a lista completa
-        if ($cpf == null) {
-            return $lista;
+        // Verifica se um número foi informado
+        if (empty($cpf)) {
+            throw new NullFieldCpfException();
+        }
+
+        // Verifica se nenhuma das sequências abaixo foi digitada, caso seja, retorna falso
+        else if (
+            $cpf == '00000000000' ||
+            $cpf == '11111111111' ||
+            $cpf == '22222222222' ||
+            $cpf == '33333333333' ||
+            $cpf == '44444444444' ||
+            $cpf == '55555555555' ||
+            $cpf == '66666666666' ||
+            $cpf == '77777777777' ||
+            $cpf == '88888888888' ||
+            $cpf == '99999999999'
+        ) {
+            return false;
+            // Calcula os digitos verificadores para verificar se o CPF é válido
         } else {
-            foreach ($lista as $user) {
-                if ($user['cpf'] == $cpf) {
-                    return $user;
+            for ($i = 9; $i < 11; $i++) {
+                for ($x = 0, $y = 0; $y < $i; $y++) {
+                    $x += $cpf[$y] * (($i + 1) - $y);
+                }
+                $x = ((10 * $x) % 11) % 10;
+                if ($cpf[$y] != $x) {
+                    return false;
                 }
             }
+            return true;
         }
-        return null;
     }
-
     //Função para formatar o CPF
     private function formatCpf(string $cpf): string
     {
-        // Remove caracteres não numéricos
-        $cpf = preg_replace('/\D/', '', $cpf);
-        // Verifica se o CPF possui 11 caracteres
+        // Elimina possivel mascara
+        $cpf = preg_replace('/[^0-9]/', '', $cpf);
+        // Verifica se o numero de digitos informados é igual a 11
         if (strlen($cpf) != 11) {
-            throw new UndefinedCpfException('invalid');
+            return throw new IsNotValidCpfException();
         }
-        // Formata o CPF ###.###.###-##
-        return substr_replace(substr_replace(substr_replace($cpf, '.', 3, 0), '.', 7, 0), '-', 11, 0);
+        return $cpf;
     }
+
+    public function dados()
+    {
+        // Lista de usuários cadastrados
+        return [
+            '48148839867',
+            '76136366070',
+            '43765105058',
+            '52583225804',
+            '56048450001',
+        ];
+    }
+    function findCpf(array $data, string $cpf)
+    {
+        foreach ($data as $key => $item) {
+            if ($item === $cpf) {
+                return $item;  // CPF encontrado, retorna o próprio CPF
+            }
+        }
+        return null;  // CPF não encontrado
+    }
+
 }

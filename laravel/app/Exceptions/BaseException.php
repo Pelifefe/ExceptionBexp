@@ -7,19 +7,16 @@ use Illuminate\Http\Response;
 
 abstract class BaseException extends Exception
 {
-    protected $errorType;
-
-    public function __construct($errorType = 'default', $code = 0, Exception $previous = null)
-    {
-        $this->errorType = $errorType;
-        $message = $this->getErrorMessage($errorType);
+    public function __construct($message = 'default error', $code = 0, Exception $previous = null)
+    {   
         parent::__construct($message, $code, $previous);
     }
-    abstract protected function getErrorMessage($errorType);
+
+    abstract protected function getErrorMessage();
+
     public function render($request)
     {
         return response()->json([
-            'error' => $this->errorType,
             'message' => $this->getMessage()
         ], Response::HTTP_BAD_REQUEST);
     }
