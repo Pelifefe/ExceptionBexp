@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers;
 
-
 use App\Exceptions\CpfException;
 use App\Exceptions\IsNotValidCpfException;
 use App\Exceptions\NotContainsCpfException;
 use App\Exceptions\NullFieldCpfException;
 use Illuminate\Http\Request;
-
 
 class CpfController extends Controller
 {
@@ -17,6 +15,7 @@ class CpfController extends Controller
         $cpf = $request->input('cpf');
         return $this->index($cpf);
     }
+
     public function index($cpf = null)
     {
         try {
@@ -43,27 +42,10 @@ class CpfController extends Controller
 
             // Informar que CPF foi encontrado e já está cadastrado
             return response()->json($resultado);
-        } catch (NullFieldCpfException $e) {
-            return back()->withErrors($e->getMessage());
-        } catch (IsNotValidCpfException $e) {
-            return back()->withErrors($e->getMessage());
-        } catch (NotContainsCpfException $e) {
-            // Se não encontrar o CPF, redirecionar para a tela de cadastro de CPF
-            return redirect()->route('cpf.cadastro')->withErrors($e->getMessage());
+        } catch (CpfException $e) {
+            return $e->render(request());
         }
     }
-
-    //Função para verificar se o CPF está cadastrado
-    // public function isContainsCpf(string $cpf): bool
-    // {
-    //     $lista = $this->dados();
-    //     foreach ($lista as $user) {
-    //         if ($user['cpf'] == $cpf) {
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
 
     private function isValid($cpf): bool
     {
@@ -73,7 +55,7 @@ class CpfController extends Controller
         }
 
         // Verifica se nenhuma das sequências abaixo foi digitada, caso seja, retorna falso
-        else if (
+        if (
             $cpf == '00000000000' ||
             $cpf == '11111111111' ||
             $cpf == '22222222222' ||
@@ -86,33 +68,37 @@ class CpfController extends Controller
             $cpf == '99999999999'
         ) {
             return false;
-            // Calcula os digitos verificadores para verificar se o CPF é válido
-        } else {
-            for ($i = 9; $i < 11; $i++) {
-                for ($x = 0, $y = 0; $y < $i; $y++) {
-                    $x += $cpf[$y] * (($i + 1) - $y);
-                }
-                $x = ((10 * $x) % 11) % 10;
-                if ($cpf[$y] != $x) {
-                    return false;
-                }
+        }
+
+        // Calcula os digitos verificadores para verificar se o CPF é válido
+        for ($i = 9; $i < 11; $i++) {
+            for ($x = 0, $y = 0; $y < $i; $y++) {
+                $x += $cpf[$y] * (($i + 1) - $y);
             }
-            return true;
+            $x = ((10 * $x) % 11) % 10;
+            if ($cpf[$y] != $x) {
+                return false;
+            }
         }
-    }
-    //Função para formatar o CPF
-    private function formatCpf(string $cpf): string
-    {
-        // Elimina possivel mascara
-        $cpf = preg_replace('/[^0-9]/', '', $cpf);
-        // Verifica se o numero de digitos informados é igual a 11
-        if (strlen($cpf) != 11) {
-            return throw new IsNotValidCpfException();
-        }
-        return $cpf;
+        return true;
     }
 
-    public function dados()
+    private function formatCpf(string $cpf): string
+    {
+        
+        $cpf = preg_replace('/[^0-9]/', '', $cpf);
+
+        if (strlen($cpf) != 11) {
+            throw new IsNotValidCpfException();
+        }
+
+        if (!ctype_digit($cpf)) {
+            throw new IsNotValidCpfException();
+        }
+
+        return $cpf;
+    }
+    public function dados(): array
     {
         // Lista de usuários cadastrados
         return [
@@ -123,14 +109,14 @@ class CpfController extends Controller
             '56048450001',
         ];
     }
-    function findCpf(array $data, string $cpf)
+
+    private function findCpf(array $data, string $cpf): ?string
     {
-        foreach ($data as $key => $item) {
+        foreach ($data as $item) {
             if ($item === $cpf) {
                 return $item;  // CPF encontrado, retorna o próprio CPF
             }
         }
         return null;  // CPF não encontrado
     }
-
 }

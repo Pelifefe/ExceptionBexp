@@ -7,7 +7,11 @@
 </head>
 <body>
     <h2>Cadastro de CPF</h2>
-    <p>Cpf Informado não existente no nosso programa</p>
+    @if (session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+    @endif 
     <p>Informe o CPF:</p>
     <form action="{{ route('efetuar-cadastro') }}" method="post">
         @csrf

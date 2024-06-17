@@ -7,9 +7,12 @@ use Illuminate\Http\Response;
 
 abstract class BaseException extends Exception
 {
-    public function __construct($message = 'default error', $code = 0, Exception $previous = null)
-    {   
-        parent::__construct($message, $code, $previous);
+    protected $errorMessage;
+
+    public function __construct($message = null, $code = 0, Exception $previous = null)
+    {
+        $this->errorMessage = $message ?? $this->getErrorMessage();
+        parent::__construct($this->errorMessage, $code, $previous);
     }
 
     abstract protected function getErrorMessage();

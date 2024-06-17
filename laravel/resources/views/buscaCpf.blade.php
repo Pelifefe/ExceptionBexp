@@ -6,7 +6,7 @@
     <title>Busca CPF</title>
 </head>
 <body>
-    <form action="{{ route('cpf') }}" method="post">
+    <form action="{{ route('cpf.buscar') }}" method="post">
         @csrf
         <label for="cpf">CPF:</label>
         <input type="text" name="cpf" id="cpf">

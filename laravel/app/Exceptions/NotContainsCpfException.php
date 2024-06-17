@@ -4,14 +4,15 @@ namespace App\Exceptions;
 
 use Illuminate\Support\Facades\Redirect;
 
-class NotContainsCpfException extends BaseException
+class NotContainsCpfException extends CpfException
 {
     protected function getErrorMessage()
     {
-        return 'CPF não encontrado';
+        return 'CPF não encontrado no sistema';
     }
-    public function render($request){
-        //Verifica se o Cpf na base de dados e redereciona para a tela de cadastro de CPF
-        return Redirect::route('cpf.cadastro');
+    public function render($request)
+    {
+        return Redirect::route('cpf.cadastro')->with('error', $this->message);
     }
+
 }
